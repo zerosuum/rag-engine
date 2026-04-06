@@ -1,9 +1,23 @@
 import uuid
+import io
+from pypdf import PdfReader
 from app.repository.chroma_store import get_repo
 
 class RAGService:
     def __init__(self, repo_instance=get_repo()):
         self.repo = repo_instance
+
+    def extract_text_from_file(self, file_bytes: bytes, filename: str) -> str:
+        """Ekstrak teks dari PDF atau TXT"""
+        if filename.lower().endswith(".pdf"):
+            reader = PdfReader(io.BytesIO(file_bytes))
+            text = ""
+            for page in reader.pages:
+                if page.extract_text():
+                    text += page.extract_text() + "\n"
+            return text
+        else:
+            return file_bytes.decode("utf-8", errors="ignore")
 
     def _chunk_text(self, text: str, words_per_chunk: int = 100, overlap: int = 20) -> list[str]:
         words = text.split()

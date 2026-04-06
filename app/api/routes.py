@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, UploadFile, File
 from pydantic import BaseModel, Field
 from app.services.rag_service import RAGService
 from typing import Optional
@@ -26,13 +26,24 @@ def upload_document(doc: DocumentInput):
     doc_id = rag_service.add_document(doc.text, doc.metadata)
     return {"message": "Document chunked and added successfully", "parent_id": doc_id}
 
+@router.post("/documents/file", summary="Upload Dokumen File (PDF/TXT)")
+async def upload_file(file: UploadFile = File(...)):
+    content = await file.read()
+    text = rag_service.extract_text_from_file(content, file.filename or "")
+    
+    if not text.strip():
+        raise HTTPException(status_code=400, detail="Teks tidak terbaca dari file ini.")
+    
+    doc_id = rag_service.add_document(text, {"filename": file.filename})
+    return {"message": f"File {file.filename} berhasil diproses", "parent_id": doc_id}
+
 @router.get("/documents", summary="Get Semua Dokumen (with Pagination)")
 def list_documents(
     skip: int = Query(0, description="Jumlah data yang dilewati"), 
     limit: int = Query(10, description="Maksimal data yang diambil")
 ):
     all_docs = rag_service.get_all_documents()
-    
+
     paginated_docs = all_docs[skip : skip + limit]
     
     return {
